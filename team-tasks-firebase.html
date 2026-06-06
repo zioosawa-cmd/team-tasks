@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>チームタスク</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f7f5f0;--surface:#fff;--surface2:#f0ede6;
+  --border:#e0dbd0;--text:#1c1917;--text2:#78716c;--text3:#a8a29e;
+  --accent:#2d6a4f;--accent-light:#d8f3dc;--accent-text:#1b4332;
+  --red:#dc2626;--red-light:#fee2e2;--red-text:#991b1b;
+  --amber:#d97706;--amber-light:#fef3c7;--amber-text:#92400e;
+  --purple:#7c3aed;--purple-light:#ede9fe;
+  --sans:'Noto Sans JP',sans-serif;--mono:'DM Mono',monospace;
+  --radius:10px;--radius-sm:6px;--shadow:0 1px 4px rgba(0,0,0,0.08);
+}
+[data-theme="dark"]{
+  --bg:#171717;--surface:#262626;--surface2:#303030;
+  --border:#3a3a3a;--text:#f5f5f5;--text2:#a8a29e;--text3:#737373;
+  --accent:#4ade80;--accent-light:#14532d;--accent-text:#bbf7d0;
+  --red:#f87171;--red-light:#450a0a;--red-text:#fca5a5;
+  --amber:#fbbf24;--amber-light:#451a03;--amber-text:#fde68a;
+  --purple:#a78bfa;--purple-light:#3b0764;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── HEADER ── */
+.header{background:var(--accent);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+[data-theme="dark"] .header{background:#1a2e1f;}
+.header-left{display:flex;align-items:center;gap:10px;}
+.app-title{font-size:16px;font-weight:700;}
+.role-badge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;letter-spacing:0.04em;}
+.role-badge.admin{background:rgba(255,255,255,0.25);color:#fff;}
+.role-badge.member{background:rgba(255,255,255,0.2);color:#fff;}
+.sync-badge{font-size:10px;font-family:var(--mono);display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.12);padding:3px 9px;border-radius:20px;}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:#fca5a5;}
+.sync-dot.live{background:#86efac;}
+.sync-dot.syncing{background:#fcd34d;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.header-right{display:flex;gap:6px;}
+.icon-btn{background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:var(--radius-sm);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;}
+.icon-btn:hover{background:rgba(255,255,255,0.25);}
+
+/* ── MAIN ── */
+.main{max-width:740px;margin:0 auto;padding:20px 16px 40px;}
+
+/* ── SETUP SCREEN ── */
+.setup-wrap{max-width:480px;margin:60px auto;padding:0 16px;}
+.setup-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);}
+.setup-title{font-size:18px;font-weight:700;margin-bottom:6px;}
+.setup-sub{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6;}
+.setup-label{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;display:block;}
+.setup-input{font-size:14px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:var(--sans);width:100%;margin-bottom:12px;}
+.setup-input:focus{outline:none;border-color:var(--accent);}
+.setup-btn{width:100%;padding:11px;font-size:14px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--sans);}
+.setup-btn:hover{opacity:0.9;}
+[data-theme="dark"] .setup-btn{color:#000;}
+.setup-error{font-size:12px;color:var(--red);margin-bottom:10px;display:none;}
+.setup-divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
+.url-tip{background:var(--surface2);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.7;}
+.url-tip code{background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px;color:var(--text);}
+
+/* ── NOTICE ── */
+.notice{background:var(--amber-light);border:1px solid var(--amber);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--amber-text);line-height:1.7;}
+.notice code{background:rgba(0,0,0,0.07);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:11px;}
+
+/* ── STATS (admin only) ── */
+.stats{display:grid;gap:8px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:11px 10px;text-align:center;box-shadow:var(--shadow);}
+.stat-num{font-size:20px;font-weight:700;font-family:var(--mono);}
+.stat-lbl{font-size:10px;color:var(--text2);margin-top:2px;}
+.stat-avatar{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;margin-bottom:4px;}
+
+/* ── ADD FORM ── */
+.add-form{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;box-shadow:var(--shadow);}
+.form-title{font-size:11px;font-weight:700;color:var(--text2);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:12px;}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.form-row:last-child{margin-bottom:0;}
+.form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px;}
+.form-group label{font-size:11px;color:var(--text2);font-weight:500;}
+input[type=text],input[type=date],select{font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:var(--sans);width:100%;}
+input:focus,select:focus{outline:none;border-color:var(--accent);}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 16px;font-size:13px;font-weight:500;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);cursor:pointer;font-family:var(--sans);white-space:nowrap;transition:all 0.15s;}
+.btn:hover{background:var(--surface2);}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{opacity:0.9;}
+[data-theme="dark"] .btn-primary{color:#000;}
+.btn-sm{padding:5px 12px;font-size:12px;}
+.btn-xs{padding:3px 8px;font-size:11px;}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--text2);}
+.btn-ghost:hover{background:var(--surface2);}
+.btn-danger{color:var(--red);border-color:transparent;}
+.btn-danger:hover{background:var(--red-light);}
+
+/* ── FILTER ── */
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.filter-btn{padding:5px 12px;font-size:12px;border:1px solid var(--border);border-radius:20px;background:var(--surface);color:var(--text2);cursor:pointer;font-family:var(--sans);white-space:nowrap;}
+.filter-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+[data-theme="dark"] .filter-btn.active{color:#000;}
+.search-wrap{margin-left:auto;position:relative;}
+.search-wrap input{padding:6px 10px 6px 28px;font-size:12px;border:1px solid var(--border);border-radius:20px;background:var(--surface);color:var(--text);width:140px;font-family:var(--sans);}
+.search-wrap input:focus{outline:none;border-color:var(--accent);}
+.search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3);pointer-events:none;}
+
+/* ── MEMBER SECTION ── */
+.member-section{margin-bottom:24px;}
+.member-header{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:10px;box-shadow:var(--shadow);}
+.member-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;}
+.member-name{font-size:14px;font-weight:700;flex:1;}
+.member-count{font-size:12px;color:var(--text2);font-family:var(--mono);}
+
+/* ── TASK CARD ── */
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);border-left:3px solid var(--border);}
+.task-card.overdue{border-left-color:var(--red);}
+.task-card.urgent{border-left-color:var(--amber);}
+.task-card.done-card{opacity:0.45;border-left-color:var(--accent);}
+.task-top{display:flex;align-items:flex-start;gap:10px;}
+.task-check{width:16px;height:16px;flex-shrink:0;margin-top:2px;accent-color:var(--accent);cursor:pointer;}
+.task-body{flex:1;min-width:0;}
+.task-title{font-size:14px;font-weight:500;line-height:1.4;}
+.task-title.done{text-decoration:line-through;color:var(--text2);}
+.task-memo{font-size:12px;color:var(--text2);margin-top:3px;line-height:1.5;}
+.task-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;}
+.due-badge{font-size:11px;font-family:var(--mono);padding:2px 8px;border-radius:20px;}
+.due-overdue{background:var(--red-light);color:var(--red-text);}
+.due-urgent{background:var(--amber-light);color:var(--amber-text);}
+.due-normal{background:var(--surface2);color:var(--text2);}
+.due-done{background:var(--accent-light);color:var(--accent-text);}
+.countdown{font-size:11px;font-family:var(--mono);color:var(--text2);}
+.countdown.urgent{color:var(--amber);font-weight:500;}
+.countdown.overdue{color:var(--red);font-weight:500;}
+.task-actions{display:flex;gap:4px;flex-shrink:0;}
+
+/* ── INLINE EDIT ── */
+.edit-form{background:var(--surface2);border-radius:var(--radius-sm);padding:10px;margin-top:8px;}
+.edit-form .form-row{margin-bottom:6px;}
+
+/* ── DONE SECTION ── */
+.done-header{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--accent-text);}
+[data-theme="dark"] .done-header{color:var(--accent);}
+.done-section.hidden{display:none;}
+
+/* ── URL SHARE ── */
+.url-share{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;box-shadow:var(--shadow);}
+.url-share-title{font-size:12px;font-weight:700;color:var(--text2);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:10px;}
+.url-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+.url-row:last-child{margin-bottom:0;}
+.url-label{font-size:12px;color:var(--text2);min-width:80px;flex-shrink:0;}
+.url-box{font-size:11px;font-family:var(--mono);background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;flex:1;word-break:break-all;color:var(--text2);min-width:0;}
+.copy-btn{font-size:11px;padding:5px 10px;flex-shrink:0;}
+
+.empty{text-align:center;padding:32px;color:var(--text3);font-size:14px;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 20px;border-radius:20px;font-size:13px;z-index:500;opacity:0;transition:all 0.25s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:500px){
+  .form-row{flex-direction:column;}
+  .form-group{min-width:unset;}
+  .search-wrap input{width:110px;}
+  .url-row{flex-direction:column;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN (URLパラメータなし) -->
+<div id="setup-screen" style="display:none">
+  <div class="setup-wrap">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:36px;margin-bottom:8px">👥</div>
+      <div style="font-size:20px;font-weight:700">チームタスク</div>
+    </div>
+    <div class="setup-card" id="setup-card-admin">
+      <div class="setup-title">👑 管理者としてセットアップ</div>
+      <div class="setup-sub">初回のみ設定します。メンバーのURLは設定後に発行されます。</div>
+      <label class="setup-label">管理者パスワード（共有しないでください）</label>
+      <input type="password" class="setup-input" id="admin-pw-input" placeholder="パスワードを設定...">
+      <label class="setup-label">メンバー名（カンマ区切りで複数入力）</label>
+      <input type="text" class="setup-input" id="members-input" placeholder="例：田中, 鈴木, 佐藤">
+      <div class="setup-error" id="setup-error"></div>
+      <button class="setup-btn" onclick="setupAdmin()">セットアップして管理者URLを発行</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div id="admin-login-screen" style="display:none">
+  <div class="setup-wrap">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-size:36px;margin-bottom:8px">👑</div>
+      <div style="font-size:20px;font-weight:700">管理者ログイン</div>
+    </div>
+    <div class="setup-card">
+      <label class="setup-label">管理者パスワード</label>
+      <input type="password" class="setup-input" id="admin-login-pw" placeholder="パスワードを入力..." onkeydown="if(event.key==='Enter')adminLogin()">
+      <div class="setup-error" id="admin-login-error"></div>
+      <button class="setup-btn" onclick="adminLogin()">ログイン</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app-screen" style="display:none">
+  <div class="header">
+    <div class="header-left">
+      <span class="app-title">👥 チームタスク</span>
+      <span class="role-badge" id="role-badge"></span>
+      <span class="sync-badge"><span class="sync-dot" id="syncDot"></span><span id="syncLabel">未接続</span></span>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
+      <button class="icon-btn" onclick="logout()" title="ログアウト">🚪</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="notice" id="firebase-notice" style="display:none">
+      ⚠️ <strong>Firebase未設定</strong> — 現在このブラウザのみに保存されています。<br>
+      共有するには <code>firebaseConfig</code> を書き換えてください。
+    </div>
+
+    <!-- ADMIN: stats + URL発行 -->
+    <div id="admin-stats" style="display:none"></div>
+    <div id="url-share-section" style="display:none"></div>
+
+    <!-- ADD FORM -->
+    <div class="add-form" id="add-form-wrap">
+      <div class="form-title">＋ タスクを追加</div>
+      <div class="form-row">
+        <div class="form-group" style="flex:2;min-width:180px">
+          <label>タスク内容</label>
+          <input type="text" id="t-title" placeholder="例：○○の資料を作成する">
+        </div>
+        <div class="form-group" style="max-width:130px" id="member-select-wrap" style="display:none">
+          <label>担当者</label>
+          <select id="t-member"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>期限日</label>
+          <input type="date" id="t-date">
+        </div>
+        <div class="form-group" style="max-width:120px">
+          <label>期限時間</label>
+          <select id="t-time"></select>
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>メモ（任意）</label>
+          <input type="text" id="t-memo" placeholder="補足メモ...">
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:4px">
+        <button class="btn btn-primary" onclick="addTask()">追加する</button>
+      </div>
+    </div>
+
+    <!-- FILTER (admin only) -->
+    <div class="filter-bar" id="filter-bar" style="display:none">
+      <button class="filter-btn active" onclick="setFilter('all',this)">すべて</button>
+      <button class="filter-btn" onclick="setFilter('overdue',this)">期限切れ</button>
+      <button class="filter-btn" onclick="setFilter('urgent',this)">今日・明日</button>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="検索..." id="search-input" oninput="render()">
+      </div>
+    </div>
+
+    <div id="task-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ================================================
+  🔧 FIREBASE 設定
+  firebaseConfig を自分の値に書き換えてください
+  Realtime Database を使用します
+================================================ -->
+<script type="module">
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAAJvIpQXqjBa0aIDeVKCsb6Pgt1GN8uIw",
+  authDomain: "task-a328d.firebaseapp.com",
+  databaseURL: "https://task-a328d-default-rtdb.firebaseio.com",
+  projectId: "task-a328d",
+  storageBucket: "task-a328d.firebasestorage.app",
+  messagingSenderId: "1091290712009",
+  appId: "1:1091290712009:web:c35bfa7a0120a57e928a18"
+};
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, push, remove, update, set, get }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const USE_FIREBASE = firebaseConfig.apiKey !== "YOUR_API_KEY";
+let db = null;
+let tasks = {};
+let config = {}; // { adminPw, members: ['田中','鈴木',...] }
+let currentUser = null; // { role: 'admin' } or { role: 'member', name: '田中' }
+let currentFilter = 'all';
+let doneCollapsed = {};
+let editingId = null;
+let timerInterval = null;
+
+// ── FIREBASE INIT ──
+if (USE_FIREBASE) {
+  const app = initializeApp(firebaseConfig);
+  db = getDatabase(app);
+}
+
+// ── HELPERS ──
+function esc(s) { const d = document.createElement('div'); d.appendChild(document.createTextNode(s || '')); return d.innerHTML; }
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('syncDot');
+  if (!dot) return;
+  dot.className = 'sync-dot' + (state === 'live' ? ' live' : state === 'syncing' ? ' syncing' : '');
+  document.getElementById('syncLabel').textContent = label;
+}
+function saveLocal() {
+  localStorage.setItem('tt_tasks', JSON.stringify(tasks));
+  localStorage.setItem('tt_config', JSON.stringify(config));
+}
+function loadLocal() {
+  tasks = JSON.parse(localStorage.getItem('tt_tasks') || '{}');
+  config = JSON.parse(localStorage.getItem('tt_config') || '{}');
+}
+function getAvatarColor(name, idx) {
+  const colors = ['#2d6a4f','#7c3aed','#d97706','#dc2626','#2563eb','#059669'];
+  let h = 0; for (let c of (name||'')) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+  return colors[h % colors.length];
+}
+function getInitial(name) { return (name || '?')[0]; }
+
+// ── URL PARAMS ──
+function getParams() {
+  const p = new URLSearchParams(location.search);
+  return { role: p.get('role'), name: p.get('name') };
+}
+function buildUrl(role, name) {
+  const base = location.href.split('?')[0];
+  if (role === 'admin') return base + '?role=admin';
+  return base + '?role=member&name=' + encodeURIComponent(name);
+}
+
+// ── TIME SELECT ──
+function buildTimeSelect(selId, val) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">時間なし</option>';
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hh = String(h).padStart(2, '0'), mm = String(m).padStart(2, '0');
+      const v = hh + ':' + mm;
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      if (v === (val || '')) o.selected = true;
+      sel.appendChild(o);
+    }
+  }
+}
+
+// ── SETUP (初回) ──
+window.setupAdmin = async function() {
+  const pw = document.getElementById('admin-pw-input').value.trim();
+  const membersRaw = document.getElementById('members-input').value.trim();
+  const errEl = document.getElementById('setup-error');
+  if (!pw) { errEl.style.display = 'block'; errEl.textContent = 'パスワードを入力してください'; return; }
+  if (!membersRaw) { errEl.style.display = 'block'; errEl.textContent = 'メンバー名を入力してください'; return; }
+  const members = membersRaw.split(/[,、，]/).map(s => s.trim()).filter(Boolean);
+  if (!members.length) { errEl.style.display = 'block'; errEl.textContent = 'メンバー名を正しく入力してください'; return; }
+  config = { adminPw: btoa(pw), members };
+  if (USE_FIREBASE) {
+    await set(ref(db, 'config'), config);
+  } else {
+    saveLocal();
+  }
+  // admin URLで遷移
+  location.href = buildUrl('admin');
+};
+
+// ── LOGIN ──
+window.adminLogin = async function() {
+  const pw = document.getElementById('admin-login-pw').value;
+  const errEl = document.getElementById('admin-login-error');
+  if (btoa(pw) !== config.adminPw) {
+    errEl.style.display = 'block'; errEl.textContent = 'パスワードが違います';
+    return;
+  }
+  sessionStorage.setItem('tt_auth', 'admin');
+  startApp({ role: 'admin' });
+};
+
+window.logout = function() {
+  sessionStorage.removeItem('tt_auth');
+  location.href = location.href.split('?')[0];
+};
+
+// ── INIT ──
+async function init() {
+  // config を読み込む
+  if (USE_FIREBASE) {
+    const snap = await get(ref(db, 'config'));
+    config = snap.val() || {};
+  } else {
+    loadLocal();
+  }
+
+  const { role, name } = getParams();
+
+  // URLパラメータなし → セットアップ or トップ
+  if (!role) {
+    if (!config.adminPw) {
+      document.getElementById('setup-screen').style.display = 'block';
+    } else {
+      // セットアップ済みならURL一覧を表示
+      document.getElementById('setup-screen').style.display = 'block';
+      document.getElementById('setup-card-admin').innerHTML = `
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px">🔗 アクセスURL一覧</div>
+        <div class="url-tip" style="margin-bottom:0">
+          各自のURLをブックマークしてください。<br>
+          <strong>管理者URL：</strong><br>
+          <code>${esc(buildUrl('admin'))}</code><br><br>
+          <strong>メンバーURL：</strong><br>
+          ${(config.members||[]).map(m=>`${esc(m)}：<code>${esc(buildUrl('member',m))}</code>`).join('<br>')}
+        </div>`;
+    }
+    return;
+  }
+
+  // admin role
+  if (role === 'admin') {
+    const auth = sessionStorage.getItem('tt_auth');
+    if (auth !== 'admin') {
+      document.getElementById('admin-login-screen').style.display = 'block';
+      return;
+    }
+    startApp({ role: 'admin' });
+    return;
+  }
+
+  // member role
+  if (role === 'member' && name) {
+    if (!(config.members || []).includes(name)) {
+      document.body.innerHTML = `<div style="text-align:center;padding:60px 20px;font-family:sans-serif"><div style="font-size:48px;margin-bottom:16px">🚫</div><div style="font-size:18px;font-weight:700;margin-bottom:8px">アクセスできません</div><div style="color:#78716c">このURLは無効です。管理者に確認してください。</div></div>`;
+      return;
+    }
+    startApp({ role: 'member', name });
+    return;
+  }
+
+  document.body.innerHTML = `<div style="text-align:center;padding:60px;font-family:sans-serif">無効なURLです</div>`;
+}
+
+// ── START APP ──
+function startApp(user) {
+  currentUser = user;
+  document.getElementById('app-screen').style.display = 'block';
+
+  // role badge
+  const badge = document.getElementById('role-badge');
+  badge.textContent = user.role === 'admin' ? '👑 管理者' : `👤 ${user.name}`;
+  badge.className = 'role-badge ' + user.role;
+
+  // admin UI
+  if (user.role === 'admin') {
+    document.getElementById('admin-stats').style.display = 'block';
+    document.getElementById('url-share-section').style.display = 'block';
+    document.getElementById('filter-bar').style.display = 'flex';
+    document.getElementById('member-select-wrap').style.display = 'flex';
+    // member select
+    const sel = document.getElementById('t-member');
+    sel.innerHTML = (config.members || []).map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+    // URL share
+    renderUrlShare();
+  }
+
+  buildTimeSelect('t-time', '');
+
+  if (!USE_FIREBASE) {
+    document.getElementById('firebase-notice').style.display = 'block';
+    setSyncStatus('off', 'ローカル');
+    render();
+  } else {
+    setSyncStatus('syncing', '同期中...');
+    onValue(ref(db, 'tasks'), snap => {
+      tasks = snap.val() || {};
+      render();
+      setSyncStatus('live', 'リアルタイム同期');
+    });
+  }
+}
+
+// ── URL SHARE ──
+function renderUrlShare() {
+  const members = config.members || [];
+  const rows = members.map((m, i) => `
+    <div class="url-row">
+      <span class="url-label" style="display:flex;align-items:center;gap:5px">
+        <span style="width:20px;height:20px;border-radius:50%;background:${getAvatarColor(m,i)};display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff">${esc(getInitial(m))}</span>
+        ${esc(m)}
+      </span>
+      <span class="url-box" id="url-${i}">${esc(buildUrl('member', m))}</span>
+      <button class="btn btn-sm copy-btn" onclick="copyUrl(${i})">コピー</button>
+    </div>`).join('');
+  document.getElementById('url-share-section').innerHTML = `
+    <div class="url-share">
+      <div class="url-share-title">🔗 メンバー用URL（各自に送ってください）</div>
+      ${rows}
+    </div>`;
+}
+window.copyUrl = function(i) {
+  const el = document.getElementById('url-' + i);
+  navigator.clipboard.writeText(el.textContent).then(() => showToast('URLをコピーしました'));
+};
+
+// ── TASK CRUD ──
+window.addTask = function() {
+  const title = document.getElementById('t-title').value.trim();
+  if (!title) { showToast('タスク内容を入力してください'); return; }
+  const date = document.getElementById('t-date').value;
+  const time = document.getElementById('t-time').value;
+  const due = date ? (time ? date + 'T' + time : date) : '';
+  const member = currentUser.role === 'admin'
+    ? document.getElementById('t-member').value
+    : currentUser.name;
+  const task = { title, member, due, memo: document.getElementById('t-memo').value.trim(), done: false, created: Date.now() };
+  if (USE_FIREBASE) push(ref(db, 'tasks'), task);
+  else { tasks['t' + Date.now()] = task; saveLocal(); render(); }
+  document.getElementById('t-title').value = '';
+  document.getElementById('t-date').value = '';
+  document.getElementById('t-time').value = '';
+  document.getElementById('t-memo').value = '';
+  showToast('追加しました');
+};
+
+window.toggleDone = function(id) {
+  const newDone = !tasks[id].done;
+  const upd = { done: newDone, doneAt: newDone ? Date.now() : null };
+  if (USE_FIREBASE) update(ref(db, 'tasks/' + id), upd);
+  else { Object.assign(tasks[id], upd); saveLocal(); render(); }
+};
+
+window.deleteTask = function(id) {
+  if (!confirm('削除しますか？')) return;
+  if (USE_FIREBASE) remove(ref(db, 'tasks/' + id));
+  else { delete tasks[id]; saveLocal(); render(); }
+  showToast('削除しました');
+};
+
+window.openEdit = function(id) { editingId = id; render(); setTimeout(() => document.getElementById('edit-title-' + id)?.focus(), 30); };
+window.cancelEdit = function() { editingId = null; render(); };
+window.saveEdit = function(id) {
+  const title = document.getElementById('edit-title-' + id)?.value.trim();
+  if (!title) { showToast('タスク内容を入力してください'); return; }
+  const date = document.getElementById('edit-date-' + id)?.value || '';
+  const time = document.getElementById('edit-time-' + id)?.value || '';
+  const due = date ? (time ? date + 'T' + time : date) : '';
+  const memo = document.getElementById('edit-memo-' + id)?.value.trim() || '';
+  const upd = { title, due, memo };
+  if (USE_FIREBASE) update(ref(db, 'tasks/' + id), upd);
+  else { Object.assign(tasks[id], upd); saveLocal(); }
+  editingId = null;
+  if (!USE_FIREBASE) render();
+  showToast('更新しました');
+};
+
+// ── FILTER ──
+window.setFilter = function(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+};
+window.toggleDoneSection = function(key) {
+  doneCollapsed[key] = !doneCollapsed[key]; render();
+};
+
+// ── DUE HELPERS ──
+function getDueStatus(due, done) {
+  if (!due) return 'normal';
+  if (done) return 'done';
+  const diff = new Date(due) - new Date();
+  if (diff < 0) return 'overdue';
+  if (diff < 48 * 3600000) return 'urgent';
+  return 'normal';
+}
+function getCountdown(due) {
+  if (!due) return null;
+  const diff = new Date(due) - new Date();
+  if (diff < 0) return { text: '期限切れ', cls: 'overdue' };
+  const d = Math.floor(diff / 86400000), h = Math.floor((diff % 86400000) / 3600000), m = Math.floor((diff % 3600000) / 60000);
+  const text = d > 0 ? d + '日 ' + h + '時間' : h > 0 ? h + '時間 ' + m + '分' : m + '分';
+  return { text: '残り ' + text, cls: diff < 86400000 ? 'urgent' : '' };
+}
+function fmtDue(due) {
+  if (!due) return null;
+  const d = new Date(due), hasTime = due.includes('T');
+  return d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' }) +
+    (hasTime ? ' ' + d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '');
+}
+function cleanDone() {
+  const THREE = 3 * 24 * 3600000; let changed = false;
+  Object.keys(tasks).forEach(id => {
+    if (tasks[id].done && tasks[id].doneAt && Date.now() - tasks[id].doneAt > THREE) {
+      if (USE_FIREBASE) remove(ref(db, 'tasks/' + id));
+      else { delete tasks[id]; changed = true; }
+    }
+  });
+  if (changed) saveLocal();
+}
+
+// ── RENDER ──
+function render() {
+  if (!currentUser) return;
+  clearInterval(timerInterval);
+  cleanDone();
+  const search = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const now = new Date();
+  const isAdmin = currentUser.role === 'admin';
+  const members = config.members || [];
+
+  // filter
+  let arr = Object.entries(tasks).filter(([, t]) => {
+    if (!isAdmin && t.member !== currentUser.name) return false;
+    if (search && !t.title?.toLowerCase().includes(search) && !(t.memo || '').toLowerCase().includes(search)) return false;
+    if (currentFilter === 'overdue') return !t.done && t.due && new Date(t.due) < now;
+    if (currentFilter === 'urgent') return !t.done && t.due && new Date(t.due) >= now && (new Date(t.due) - now) < 48 * 3600000;
+    return true;
+  });
+
+  arr.sort(([, a], [, b]) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    const o = { overdue: 0, urgent: 1, normal: 2, done: 3 };
+    const sa = getDueStatus(a.due, a.done), sb = getDueStatus(b.due, b.done);
+    if (o[sa] !== o[sb]) return o[sa] - o[sb];
+    if (a.due && b.due) return new Date(a.due) - new Date(b.due);
+    return a.due ? -1 : 1;
+  });
+
+  // admin: stats
+  if (isAdmin) {
+    const statsHtml = `<div class="stats" style="grid-template-columns:repeat(${Math.min(members.length+1, 4)},1fr)">
+      ${members.map((m, i) => {
+        const cnt = Object.values(tasks).filter(t => t.member === m && !t.done).length;
+        const ov = Object.values(tasks).filter(t => t.member === m && !t.done && t.due && new Date(t.due) < now).length;
+        return `<div class="stat">
+          <div class="stat-avatar" style="background:${getAvatarColor(m,i)}">${esc(getInitial(m))}</div>
+          <div class="stat-num" style="color:${getAvatarColor(m,i)}">${cnt}</div>
+          <div class="stat-lbl">${esc(m)}の未完了${ov > 0 ? ` <span style="color:var(--red)">⚠${ov}</span>` : ''}</div>
+        </div>`;
+      }).join('')}
+      <div class="stat">
+        <div class="stat-num" style="color:var(--red)">${Object.values(tasks).filter(t=>!t.done&&t.due&&new Date(t.due)<now).length}</div>
+        <div class="stat-lbl">期限切れ合計</div>
+      </div>
+    </div>`;
+    document.getElementById('admin-stats').innerHTML = statsHtml;
+  }
+
+  // group by member
+  let html = '';
+  const showMembers = isAdmin ? members : [currentUser.name];
+
+  showMembers.forEach((m, idx) => {
+    const mArr = arr.filter(([, t]) => t.member === m);
+    const active = mArr.filter(([, t]) => !t.done);
+    const done = mArr.filter(([, t]) => t.done);
+    const color = getAvatarColor(m, idx);
+
+    if (!isAdmin && !active.length && !done.length) {
+      html += '<div class="empty">📭 タスクがありません。追加してください！</div>';
+      return;
+    }
+    if (isAdmin) {
+      html += `<div class="member-section">
+        <div class="member-header">
+          <div class="member-avatar" style="background:${color}">${esc(getInitial(m))}</div>
+          <span class="member-name">${esc(m)}</span>
+          <span class="member-count">${active.length}件</span>
+        </div>`;
+    }
+    if (!active.length && !done.length) {
+      html += '<div class="empty" style="padding:16px">タスクがありません</div>';
+    }
+    html += active.map(([id, t]) => taskCardHtml(id, t)).join('');
+    if (done.length) {
+      const key = m;
+      html += `<div class="done-header" onclick="toggleDoneSection('${esc(key)}')">
+        ✅ 完了済み（${done.length}件）<span>${doneCollapsed[key] ? '▶' : '▼'}</span>
+      </div>
+      <div class="done-section ${doneCollapsed[key] ? 'hidden' : ''}">
+        ${done.map(([id, t]) => taskCardHtml(id, t)).join('')}
+      </div>`;
+    }
+    if (isAdmin) html += '</div>';
+  });
+
+  if (!html) html = '<div class="empty">🔍 該当するタスクがありません</div>';
+  document.getElementById('task-list').innerHTML = html;
+
+  // rebuild edit time selects
+  if (editingId) buildTimeSelect('edit-time-' + editingId, tasks[editingId]?.due?.slice(11, 16) || '');
+
+  // countdown
+  function tick() {
+    arr.forEach(([id, t]) => {
+      if (t.due && !t.done) {
+        const el = document.getElementById('cd-' + id);
+        if (el) { const r = getCountdown(t.due); el.textContent = r.text; el.className = 'countdown ' + r.cls; }
+      }
+    });
+  }
+  tick(); timerInterval = setInterval(tick, 1000);
+}
+
+function taskCardHtml(id, t) {
+  const status = getDueStatus(t.due, t.done);
+  const dueStr = fmtDue(t.due);
+  const dueCls = { overdue: 'due-overdue', urgent: 'due-urgent', normal: 'due-normal', done: 'due-done' }[status];
+  const isEditing = editingId === id;
+  const canEdit = currentUser.role === 'admin' || currentUser.name === t.member;
+  const editDate = t.due ? t.due.slice(0, 10) : '';
+
+  const viewHtml = `
+    <div class="task-top">
+      <input type="checkbox" class="task-check" ${t.done ? 'checked' : ''} onchange="toggleDone('${id}')">
+      <div class="task-body">
+        <div class="task-title ${t.done ? 'done' : ''}">${esc(t.title)}</div>
+        ${t.memo ? `<div class="task-memo">${esc(t.memo)}</div>` : ''}
+        <div class="task-meta">
+          ${dueStr ? `<span class="due-badge ${dueCls}">📅 ${dueStr}</span>` : ''}
+          ${t.due && !t.done ? `<span class="countdown" id="cd-${id}"></span>` : ''}
+        </div>
+      </div>
+      ${canEdit ? `<div class="task-actions">
+        <button class="btn btn-xs btn-ghost" onclick="openEdit('${id}')">✏️</button>
+        <button class="btn btn-xs btn-danger" onclick="deleteTask('${id}')">🗑</button>
+      </div>` : ''}
+    </div>`;
+
+  const editHtml = `
+    <div class="task-top">
+      <input type="checkbox" class="task-check" ${t.done ? 'checked' : ''} onchange="toggleDone('${id}')">
+      <div class="task-body" style="width:100%">
+        <div class="edit-form">
+          <div class="form-row">
+            <div class="form-group" style="flex:2">
+              <label>タスク内容</label>
+              <input type="text" id="edit-title-${id}" value="${esc(t.title)}">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>期限日</label>
+              <input type="date" id="edit-date-${id}" value="${editDate}">
+            </div>
+            <div class="form-group" style="max-width:120px">
+              <label>期限時間</label>
+              <select id="edit-time-${id}"></select>
+            </div>
+            <div class="form-group" style="flex:2">
+              <label>メモ</label>
+              <input type="text" id="edit-memo-${id}" value="${esc(t.memo || '')}">
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;justify-content:flex-end">
+            <button class="btn btn-sm btn-ghost" onclick="cancelEdit()">キャンセル</button>
+            <button class="btn btn-sm btn-primary" onclick="saveEdit('${id}')">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  return `<div class="task-card ${t.done ? 'done-card' : status}">${isEditing && canEdit ? editHtml : viewHtml}</div>`;
+}
+
+// ── THEME ──
+function initTheme() {
+  const t = localStorage.getItem('tt_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeBtn').textContent = t === 'dark' ? '☀️' : '🌙';
+}
+window.toggleTheme = function() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('tt_theme', next);
+  document.getElementById('themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
+};
+
+// ── START ──
+initTheme();
+init();
+</script>
+</body>
+</html>
