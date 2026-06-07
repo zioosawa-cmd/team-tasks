@@ -157,6 +157,16 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
 .copy-btn{font-size:11px;padding:5px 10px;flex-shrink:0;}
 
 .empty{text-align:center;padding:32px;color:var(--text3);font-size:14px;}
+
+/* ── MEMBER MANAGE ── */
+.member-manage{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px;box-shadow:var(--shadow);}
+.member-manage-title{font-size:12px;font-weight:700;color:var(--text2);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:12px;}
+.member-manage-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.member-manage-row:last-child{margin-bottom:0;}
+.member-chip{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);flex:1;}
+.member-chip-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;}
+.member-chip-name{font-size:13px;font-weight:500;flex:1;}
+.member-chip-count{font-size:11px;font-family:var(--mono);color:var(--text3);}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 20px;border-radius:20px;font-size:13px;z-index:500;opacity:0;transition:all 0.25s;pointer-events:none;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -273,6 +283,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
       </div>
     </div>
 
+    <div id="member-manage-section" style="display:none"></div>
     <div id="task-list"></div>
   </div>
 </div>
@@ -289,7 +300,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent);}
 const firebaseConfig = {
   apiKey: "AIzaSyAAJvIpQXqjBa0aIDeVKCsb6Pgt1GN8uIw",
   authDomain: "task-a328d.firebaseapp.com",
-  databaseURL: "https://task-a328d-default-rtdb.firebaseio.com",
+  databaseURL: "https://task-a328d-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "task-a328d",
   storageBucket: "task-a328d.firebasestorage.app",
   messagingSenderId: "1091290712009",
@@ -485,6 +496,8 @@ function startApp(user) {
     sel.innerHTML = (config.members || []).map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
     // URL share
     renderUrlShare();
+    document.getElementById('member-manage-section').style.display = 'block';
+    renderMemberManage();
   }
 
   buildTimeSelect('t-time', '');
@@ -498,6 +511,7 @@ function startApp(user) {
     onValue(ref(db, 'tasks'), snap => {
       tasks = snap.val() || {};
       render();
+      if (currentUser?.role === 'admin') renderMemberManage();
       setSyncStatus('live', 'リアルタイム同期');
     });
   }
@@ -524,6 +538,74 @@ function renderUrlShare() {
 window.copyUrl = function(i) {
   const el = document.getElementById('url-' + i);
   navigator.clipboard.writeText(el.textContent).then(() => showToast('URLをコピーしました'));
+};
+
+// ── MEMBER MANAGE ──
+function renderMemberManage() {
+  const el = document.getElementById('member-manage-section');
+  if (!el) return;
+  const members = config.members || [];
+  const memberRows = members.map((m, i) => {
+    const taskCount = Object.values(tasks).filter(t => t.member === m).length;
+    const color = getAvatarColor(m, i);
+    return `<div class="member-manage-row">
+      <div class="member-chip">
+        <div class="member-chip-avatar" style="background:${color}">${esc(getInitial(m))}</div>
+        <span class="member-chip-name">${esc(m)}</span>
+        <span class="member-chip-count">${taskCount}件</span>
+      </div>
+      <button class="btn btn-sm" onclick="copyMemberUrl('${esc(m)}')">URLコピー</button>
+      ${taskCount === 0 ? `<button class="btn btn-sm btn-danger" onclick="deleteMember('${esc(m)}')">削除</button>` : `<button class="btn btn-sm btn-ghost" title="タスクがあるため削除不可" disabled style="opacity:0.4">削除</button>`}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="member-manage">
+    <div class="member-manage-title">👥 メンバー管理</div>
+    ${memberRows}
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+      <input type="text" id="new-member-input" placeholder="新しいメンバー名..." style="flex:1;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);font-family:var(--sans);" onkeydown="if(event.key==='Enter')addMember()">
+      <button class="btn btn-primary btn-sm" onclick="addMember()">＋ 追加</button>
+    </div>
+  </div>`;
+}
+
+window.addMember = async function() {
+  const inp = document.getElementById('new-member-input');
+  const name = inp.value.trim();
+  if (!name) { showToast('名前を入力してください'); return; }
+  if ((config.members || []).includes(name)) { showToast('すでに存在するメンバーです'); return; }
+  config.members = [...(config.members || []), name];
+  if (USE_FIREBASE) {
+    await set(ref(db, 'config/members'), config.members);
+  } else {
+    saveLocal();
+  }
+  inp.value = '';
+  renderMemberManage();
+  renderUrlShare();
+  render();
+  showToast(`${name} を追加しました`);
+};
+
+window.deleteMember = async function(name) {
+  const taskCount = Object.values(tasks).filter(t => t.member === name).length;
+  if (taskCount > 0) { showToast('タスクがあるメンバーは削除できません'); return; }
+  if (!confirm(`「${name}」を削除しますか？`)) return;
+  config.members = (config.members || []).filter(m => m !== name);
+  if (USE_FIREBASE) {
+    await set(ref(db, 'config/members'), config.members);
+  } else {
+    saveLocal();
+  }
+  renderMemberManage();
+  renderUrlShare();
+  render();
+  showToast(`${name} を削除しました`);
+};
+
+window.copyMemberUrl = function(name) {
+  const url = buildUrl('member', name);
+  navigator.clipboard.writeText(url).then(() => showToast(`${name} のURLをコピーしました`));
 };
 
 // ── TASK CRUD ──
